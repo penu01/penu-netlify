@@ -17,29 +17,30 @@ export default function LoginPage() {
   }, [router]);
 
   const handleConnect = async (url, username, password) => {
-      try {
-        const clientData = { url, username, password };
-        const response = await fetch('/api/webdav/file-handler?action=connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(clientData),
-        });
+    const clientData = { url, username, password };
+    let response;
+    try {
+      response = await fetch('/api/webdav/file-handler?action=connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData),
+      });
+    } catch {
+      throw new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.');
+    }
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Bağlantı hatası: ${response.status}`);
-        }
-        
-        sessionStorage.setItem('webdav_connection', JSON.stringify(clientData));
-        localStorage.setItem('webdav_last_connection', JSON.stringify({ url, username }));
-
-        router.push('/files');
-
-      } catch {
-        // Handle error silently or show user-friendly message
-        // Note: setError and setIsLoading are not available in this component
-        // They should be handled in the LoginScreen component
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 502 || response.status === 504 || !errorData.message) {
+        throw new Error('WebDAV sunucusuna internet üzerinden ulaşılamadı (zaman aşımı). Sunucunun dışarıdan erişilebilir olduğundan emin olun.');
       }
+      throw new Error(errorData.message);
+    }
+
+    sessionStorage.setItem('webdav_connection', JSON.stringify(clientData));
+    localStorage.setItem('webdav_last_connection', JSON.stringify({ url, username }));
+
+    router.push('/files');
   };
 
   return (
