@@ -31,7 +31,7 @@ export default function LoginPage() {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      if (response.status === 502 || response.status === 504 || !errorData.message) {
+      if (!errorData.message) {
         throw new Error('WebDAV sunucusuna internet üzerinden ulaşılamadı (zaman aşımı). Sunucunun dışarıdan erişilebilir olduğundan emin olun.');
       }
       throw new Error(errorData.message);

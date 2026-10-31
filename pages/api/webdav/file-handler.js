@@ -23,6 +23,17 @@ const runMiddleware = (req, res, fn) => {
   });
 };
 
+// WebDAV sunucusu yanıt vermezse fonksiyon zaman aşımına uğramadan önce hata döndür
+const WEBDAV_TIMEOUT_MS = 8000;
+const withTimeout = (promise) => Promise.race([
+  promise,
+  new Promise((_, reject) => setTimeout(() => {
+    const err = new Error('WebDAV sunucusu zamanında yanıt vermedi.');
+    err.code = 'WEBDAV_TIMEOUT';
+    reject(err);
+  }, WEBDAV_TIMEOUT_MS)),
+]);
+
 // Helper to parse JSON body when bodyParser is off
 async function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -96,7 +107,7 @@ export default async function handler(req, res) {
     // Switch-case'den önce yeni action'ı ekleyelim
     if (action === 'connect') {
       try {
-        await client.getDirectoryContents('/');
+        await withTimeout(client.getDirectoryContents('/'));
         return res.status(200).json({ message: 'Bağlantı başarılı.' });
       } catch (error) {
         // Hata detayını istemciye gönderelim
@@ -138,7 +149,7 @@ export default async function handler(req, res) {
 
       case 'files':
         // Get directory contents
-        const contents = await client.getDirectoryContents(path, { deep: false });
+        const contents = await withTimeout(client.getDirectoryContents(path, { deep: false }));
         const processedContents = contents.map(item => ({
           ...item,
           filename: item.filename,
@@ -213,7 +224,10 @@ export default async function handler(req, res) {
     let message = 'İşlem sırasında bir hata oluştu.';
     let status = 500;
 
-    if (error.response && error.response.status === 404) {
+    if (error.code === 'WEBDAV_TIMEOUT') {
+      message = 'WebDAV sunucusu zamanında yanıt vermedi. Sunucunun internetten erişilebilir ve hızlı yanıt verdiğinden emin olun.';
+      status = 504;
+    } else if (error.response && error.response.status === 404) {
       message = `Dosya/dizin bulunamadı: ${req.query.path}`;
       status = 404;
     } else if (error.response && error.response.status === 401) {
