@@ -82,10 +82,10 @@ export default function FilesPage() {
     const handleDelete = async (filePath) => {
         if (window.confirm(`Are you sure you want to delete ${filePath.split('/').pop()}?`)) {
             try {
-                const response = await fetch('/api/webdav/file-handler?action=delete', {
+                const response = await fetch(`/api/webdav/file-handler?action=delete&path=${encodeURIComponent(filePath)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...client, path: filePath })
+                    body: JSON.stringify(client)
                 });
                 if (!response.ok) throw new Error('Delete failed');
                 handleCloseViewer();
